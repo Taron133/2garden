@@ -11,5 +11,7 @@
       "dest": "/public/$1",
       "check": true
     }
-  ]
+  ],
+  "cleanUrls": true,
+  "trailingSlash": false
 }
