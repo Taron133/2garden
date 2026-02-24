@@ -1,8 +1,17 @@
 {
   "version": 2,
-  "rewrites": [
-    { "source": "/api/orders", "destination": "/api/orders.js" },
-    { "source": "/api/logs", "destination": "/api/logs.js" },
-    { "source": "/api/products", "destination": "/api/products.js" }
-  ]
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1",
+      "methods": ["GET", "POST", "OPTIONS"]
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1",
+      "check": true
+    }
+  ],
+  "cleanUrls": true,
+  "trailingSlash": false
 }
