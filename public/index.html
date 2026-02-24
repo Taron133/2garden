@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Магазин в Telegram</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      padding-bottom: 60px;
+    }
+    
+    .header {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 12px 16px;
+      background-color: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    
+    .header-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+    }
+    
+    .search-container {
+      width: 100%;
+      position: relative;
+    }
+    
+    .search-input {
+      width: 100%;
+      padding: 10px 16px 10px 40px;
+      border-radius: 20px;
+      border: 1px solid #e0e0e0;
+      font-size: 14px;
+    }
+    
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #888;
+    }
+    
+    .categories {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 8px 0;
+      margin-bottom: -8px;
+    }
+    
+    .category {
+      padding: 6px 12px;
+      background: #f0f0f0;
+      border-radius: 15px;
+      white-space: nowrap;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    
+    .category.active {
+      background: #0096cf;
+      color: white;
+    }
+    
+    .page {
+      display: none;
+      padding: 0 16px 16px;
+      max-width: 800px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    
+    .page.active {
+      display: block;
+    }
+    
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+    
+    .product {
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      transition: transform 0.2s;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    
+    .product:hover {
+      transform: translateY(-3px);
+    }
+    
+    .product-image {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+      display: block;
+    }
+    
+    .product-info {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+    
+    .product-name {
+      font-weight: 600;
+      margin-bottom: 4px;
+      font-size: 14px;
+      height: 40px;
+      overflow: hidden;
+    }
+    
+    .product-price {
+      color: #0096cf;
+      font-weight: 700;
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+    
+    .add-to-cart-btn {
+      background-color: #0096cf;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 6px 0;
+      font-size: 13px;
+      width: 100%;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    .add-to-cart-btn:hover {
+      background-color: #007db4;
+    }
+    
+    .product-detail {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 16px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    
+    .product-detail-image {
+      width: 100%;
+      height: 250px;
+      object-fit: cover;
+      border-radius: 8px;
+      display: block;
+      margin-bottom: 16px;
+    }
+    
+    .product-description {
+      color: #666;
+      line-height: 1.5;
+      margin: 12px 0;
+    }
+    
+    .btn {
+      background-color: #0096cf;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 16px;
+      font-weight: 600;
+      width: 100%;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      margin-top: 16px;
+    }
+    
+    .btn:hover {
+      background-color: #007db4;
+    }
+    
+    .btn-back {
+      background-color: #f0f0f0;
+      color: #333;
+      margin-bottom: 16px;
+    }
+    
+    .btn-back:hover {
+      background-color: #e0e0e0;
+    }
+    
+    .cart-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .cart-item-info {
+      flex: 1;
+    }
+    
+    .cart-item-name {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    .cart-item-controls {
+      display: flex;
+      align-items: center;
+      margin-top: 4px;
+    }
+    
+    .cart-quantity-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #f0f0f0;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    
+    .cart-quantity {
+      margin: 0 8px;
+      min-width: 24px;
+      text-align: center;
+    }
+    
+    .cart-total {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 16px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      font-weight: 700;
+      font-size: 18px;
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    .cart-empty {
+      text-align: center;
+      padding: 40px 0;
+      color: #888;
+    }
+    
+    .cart-icon {
+      position: relative;
+      cursor: pointer;
+    }
+    
+    .cart-count {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: #ff3b30;
+      color: white;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .notification {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .notification.show {
+      opacity: 1;
+    }
+    
+    .loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      display: none;
+    }
+    
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .order-form {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 16px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    
+    .form-group {
+      margin-bottom: 16px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    .form-group input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    
+    .form-group.error input {
+      border-color: #ff3b30;
+    }
+    
+    .error-message {
+      color: #ff3b30;
+      font-size: 12px;
+      margin-top: 4px;
+      display: none;
+    }
+    
+    .form-group.error .error-message {
+      display: block;
+    }
+    
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="loading" id="loading">
+    <div class="loading-spinner"></div>
+  </div>
+  
+  <div class="notification" id="notification">Успешно!</div>
+  
+  <div class="header">
+    <div class="header-title">
+      <h1>Магазин</h1>
+      <div class="cart-icon" id="cart-icon">
+        🛒
+        <span class="cart-count" id="cart-count">0</span>
+      </div>
+    </div>
+    
+    <div class="search-container">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search" placeholder="Поиск товаров..." class="search-input">
+    </div>
+    
+    <div class="categories" id="categories">
+      <!-- Категории будут загружены через JS -->
+    </div>
+  </div>
+
+  <div id="catalog" class="page active">
+    <h2>Каталог товаров</h2>
+    <div class="product-grid" id="product-grid">
+      <!-- Товары будут загружены через JS -->
+    </div>
+  </div>
+
+  <div id="product-detail" class="page">
+    <button class="btn btn-back" id="back-to-catalog">Назад к каталогу</button>
+    <div class="product-detail" id="product-detail-content">
+      <!-- Детали товара будут загружены через JS -->
+    </div>
+  </div>
+
+  <div id="cart" class="page">
+    <button class="btn btn-back" id="back-to-catalog-from-cart">Назад к каталогу</button>
+    <h2>Ваша корзина</h2>
+    <div id="cart-items">
+      <!-- Элементы корзины будут загружены через JS -->
+    </div>
+    <div id="cart-total" class="cart-total hidden">
+      Итого: <span id="total-amount">0</span> руб.
+    </div>
+    
+    <div class="order-form hidden" id="order-form">
+      <h3>Оформление заказа</h3>
+      
+      <div class="form-group">
+        <label for="name">Имя и фамилия</label>
+        <input type="text" id="name" placeholder="Иван Иванов">
+        <div class="error-message">Введите имя и фамилию</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="phone">Телефон</label>
+        <input type="tel" id="phone" placeholder="+7 (999) 999-99-99">
+        <div class="error-message">Введите корректный номер телефона</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="address">Адрес доставки</label>
+        <input type="text" id="address" placeholder="Улица, дом, квартира">
+        <div class="error-message">Введите адрес доставки</div>
+      </div>
+      
+      <button class="btn" id="submit-order">Подтвердить заказ</button>
+    </div>
+    
+    <button class="btn" id="checkout">Оформить заказ</button>
+  </div>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script>
+    // Инициализация Telegram WebApp
+    Telegram.WebApp.expand();
+    Telegram.WebApp.setHeaderColor('#ffffff');
+    Telegram.WebApp.setBackgroundColor('#f5f5f5');
+    
+    // Настройка основной кнопки
+    Telegram.WebApp.MainButton.setText("Перейти в корзину").hide();
+    
+    // Конфигурация API
+    const API_CONFIG = {
+      BASE_URL: '/api',  // Vercel автоматически маршрутизирует /api к папке api
+      TIMEOUT: 10000
+    };
+    
+    // Класс для работы с API
+    class ApiClient {
+      static async request(endpoint, method = 'GET', data = null) {
+        try {
+          const headers = {
+            'Content-Type': 'application/json',
+            'X-Telegram-Init-Data': Telegram.WebApp.initData
+          };
+          
+          const options = {
+            method,
+            headers,
+            signal: AbortSignal.timeout(API_CONFIG.TIMEOUT)
+          };
+          
+          if (data) {
+            options.body = JSON.stringify(data);
+          }
+          
+          const response = await fetch(`${API_CONFIG.BASE_URL}${endpoint}`, options);
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => null);
+            const errorMessage = errorData?.message || `Ошибка ${response.status}`;
+            throw new Error(errorMessage);
+          }
+          
+          return response.json();
+        } catch (error) {
+          // Логируем ошибку на сервер
+          this.logError(endpoint, method, error.message);
+          throw error;
+        }
+      }
+      
+      static async logError(endpoint, method, errorMessage) {
+        try {
+          await fetch(`${API_CONFIG.BASE_URL}/logs`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Telegram-Init-Data': Telegram.WebApp.initData
+            },
+            body: JSON.stringify({
+              endpoint,
+              method,
+              error: errorMessage,
+              timestamp: new Date().toISOString(),
+              user: Telegram.WebApp.initDataUnsafe?.user?.id
+            })
+          });
+        } catch (logError) {
+          console.error('Failed to log error:', logError);
+        }
+      }
+      
+      static async createOrder(orderData) {
+        return this.request('/orders', 'POST', orderData);
+      }
+    }
+    
+    // Управление уведомлениями
+    function showNotification(message, type = 'success') {
+      const notification = document.getElementById('notification');
+      notification.textContent = message;
+      notification.className = 'notification show';
+      
+      setTimeout(() => {
+        notification.classList.remove('show');
+      }, 3000);
+      
+      // Отправляем событие в Telegram для тактильной обратной связи
+      if (type === 'success') {
+        Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+      } else if (type === 'error') {
+        Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+      }
+    }
+    
+    // Управление загрузкой
+    function setLoading(loading) {
+      document.getElementById('loading').style.display = loading ? 'flex' : 'none';
+    }
+    
+    // Управление страницами
+    function showPage(pageId) {
+      document.querySelectorAll('.page').forEach(page => {
+        page.classList.remove('active');
+      });
+      document.getElementById(pageId).classList.add('active');
+      
+      // Обновляем заголовок в зависимости от страницы
+      if (pageId === 'catalog') {
+        document.querySelector('.header h1').textContent = 'Магазин';
+      } else if (pageId === 'product-detail') {
+        document.querySelector('.header h1').textContent = 'Товар';
+      } else if (pageId === 'cart') {
+        document.querySelector('.header h1').textContent = 'Корзина';
+      }
+    }
+    
+    // Работа с корзиной
+    function getCart() {
+      const cart = localStorage.getItem('cart');
+      return cart ? JSON.parse(cart) : [];
+    }
+    
+    function saveCart(cart) {
+      localStorage.setItem('cart', JSON.stringify(cart));
+      updateCartCount();
+      updateMainButton();
+    }
+    
+    function addToCart(productId, quantity = 1) {
+      const cart = getCart();
+      const existingItem = cart.find(item => item.id === productId);
+      
+      if (existingItem) {
+        existingItem.quantity += quantity;
+      } else {
+        cart.push({ id: productId, quantity });
+      }
+      
+      saveCart(cart);
+      Telegram.WebApp.HapticFeedback.impactOccurred('light');
+      showNotification('Товар добавлен в корзину!');
+    }
+    
+    function updateQuantity(productId, quantity) {
+      if (quantity <= 0) return;
+      
+      const cart = getCart();
+      const item = cart.find(item => item.id === productId);
+      
+      if (item) {
+        item.quantity = quantity;
+        saveCart(cart);
+      }
+      
+      renderCart();
+    }
+    
+    function removeFromCart(productId) {
+      let cart = getCart();
+      cart = cart.filter(item => item.id !== productId);
+      saveCart(cart);
+      renderCart();
+    }
+    
+    function clearCart() {
+      localStorage.removeItem('cart');
+      updateCartCount();
+      updateMainButton();
+      renderCart();
+    }
+    
+    function updateCartCount() {
+      const count = getCart().reduce((sum, item) => sum + item.quantity, 0);
+      document.getElementById('cart-count').textContent = count;
+      document.getElementById('cart-count').classList.toggle('hidden', count === 0);
+    }
+    
+    function updateMainButton() {
+      const cart = getCart();
+      if (cart.length > 0) {
+        Telegram.WebApp.MainButton.show();
+      } else {
+        Telegram.WebApp.MainButton.hide();
+      }
+    }
+    
+    // Валидация данных
+    function validateForm() {
+      const name = document.getElementById('name').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      const address = document.getElementById('address').value.trim();
+      
+      let isValid = true;
+      
+      // Сброс ошибок
+      document.querySelectorAll('.form-group').forEach(group => {
+        group.classList.remove('error');
+      });
+      
+      // Проверка имени
+      if (!name || name.split(' ').length < 2) {
+        document.getElementById('name').closest('.form-group').classList.add('error');
+        isValid = false;
+      }
+      
+      // Проверка телефона
+      const phoneRegex = /^(\+7|7|8)[\s\-]?\(?[489][0-9]{2}\)?[\s\-]?[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$/;
+      if (!phone || !phoneRegex.test(phone)) {
+        document.getElementById('phone').closest('.form-group').classList.add('error');
+        isValid = false;
+      }
+      
+      // Проверка адреса
+      if (!address || address.length < 10) {
+        document.getElementById('address').closest('.form-group').classList.add('error');
+        isValid = false;
+      }
+      
+      return isValid;
+    }
+    
+    // Отображение данных
+    function renderCategories() {
+      const categoriesElement = document.getElementById('categories');
+      categoriesElement.innerHTML = '';
+      
+      CATEGORIES.forEach(category => {
+        const categoryElement = document.createElement('div');
+        categoryElement.className = `category ${category.id === currentCategory ? 'active' : ''}`;
+        categoryElement.textContent = category.name;
+        categoryElement.dataset.categoryId = category.id;
+        
+        categoryElement.addEventListener('click', () => {
+          currentCategory = category.id;
+          document.querySelectorAll('.category').forEach(cat => {
+            cat.classList.remove('active');
+          });
+          categoryElement.classList.add('active');
+          renderCatalog();
+        });
+        
+        categoriesElement.appendChild(categoryElement);
+      });
+    }
+    
+    function renderCatalog() {
+      const productGrid = document.getElementById('product-grid');
+      productGrid.innerHTML = '';
+      
+      // Фильтрация и поиск
+      let filteredProducts = products;
+      
+      if (currentCategory !== 'all') {
+        filteredProducts = filteredProducts.filter(p => p.category === currentCategory);
+      }
+      
+      const searchTerm = document.getElementById('search').value.toLowerCase().trim();
+      if (searchTerm) {
+        filteredProducts = filteredProducts.filter(p => 
+          p.name.toLowerCase().includes(searchTerm) || 
+          p.description.toLowerCase().includes(searchTerm)
+        );
+      }
+      
+      if (filteredProducts.length === 0) {
+        productGrid.innerHTML = `
+          <div class="cart-empty" style="width: 100%; grid-column: 1 / -1;">
+            <p>Товары не найдены</p>
+            <p>Попробуйте изменить запрос или выбрать другую категорию</p>
+          </div>
+        `;
+        return;
+      }
+      
+      filteredProducts.forEach(product => {
+        const productElement = document.createElement('div');
+        productElement.className = 'product';
+        productElement.innerHTML = `
+          <img src="${product.image}" alt="${product.name}" class="product-image">
+          <div class="product-info">
+            <div class="product-name">${product.name}</div>
+            <div class="product-price">${product.price} руб.</div>
+            <button class="add-to-cart-btn" data-id="${product.id}">Добавить</button>
+          </div>
+        `;
+        
+        productElement.querySelector('.add-to-cart-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          addToCart(product.id);
+        });
+        
+        productElement.addEventListener('click', () => {
+          showPage('product-detail');
+          renderProductDetail(product);
+        });
+        
+        productGrid.appendChild(productElement);
+      });
+    }
+    
+    function renderProductDetail(product) {
+      const productDetailContent = document.getElementById('product-detail-content');
+      productDetailContent.innerHTML = `
+        <img src="${product.image}" alt="${product.name}" class="product-detail-image">
+        <h2>${product.name}</h2>
+        <div class="product-price" style="font-size: 20px; margin: 10px 0;">${product.price} руб.</div>
+        <div class="product-description">${product.description}</div>
+        <div style="display: flex; gap: 8px; margin-top: 16px;">
+          <button class="btn" id="add-to-cart-btn" style="flex: 1;">Добавить в корзину</button>
+          <button class="btn" id="add-quantity-btn" style="width: 40px; padding: 0;">+</button>
+        </div>
+      `;
+      
+      document.getElementById('add-to-cart-btn').addEventListener('click', () => {
+        addToCart(product.id);
+      });
+      
+      document.getElementById('add-quantity-btn').addEventListener('click', () => {
+        addToCart(product.id, 1);
+      });
+    }
+    
+    function renderCart() {
+      const cartItemsElement = document.getElementById('cart-items');
+      const cartTotalElement = document.getElementById('cart-total');
+      const checkoutButton = document.getElementById('checkout');
+      const orderForm = document.getElementById('order-form');
+      const totalAmountElement = document.getElementById('total-amount');
+      
+      const cart = getCart();
+      
+      if (cart.length === 0) {
+        cartItemsElement.innerHTML = `
+          <div class="cart-empty">
+            <p>Ваша корзина пуста</p>
+            <p>Добавьте товары из каталога</p>
+          </div>
+        `;
+        cartTotalElement.classList.add('hidden');
+        checkoutButton.style.display = 'none';
+        orderForm.classList.add('hidden');
+        return;
+      }
+      
+      let total = 0;
+      let cartHTML = '';
+      
+      cart.forEach(cartItem => {
+        const product = products.find(p => p.id === cartItem.id);
+        if (product) {
+          const itemTotal = product.price * cartItem.quantity;
+          total += itemTotal;
+          
+          cartHTML += `
+            <div class="cart-item">
+              <div class="cart-item-info">
+                <div class="cart-item-name">${product.name}</div>
+                <div class="product-price">${product.price} руб.</div>
+                <div class="cart-item-controls">
+                  <button class="cart-quantity-btn minus" data-id="${product.id}">-</button>
+                  <span class="cart-quantity">${cartItem.quantity}</span>
+                  <button class="cart-quantity-btn plus" data-id="${product.id}">+</button>
+                </div>
+              </div>
+              <div>
+                <button class="cart-quantity-btn" style="background: #ff3b30; color: white;" data-remove="${product.id}">×</button>
+              </div>
+            </div>
+          `;
+        }
+      });
+      
+      cartItemsElement.innerHTML = cartHTML;
+      totalAmountElement.textContent = total;
+      cartTotalElement.classList.remove('hidden');
+      checkoutButton.style.display = 'block';
+      orderForm.classList.add('hidden');
+      
+      // Добавляем обработчики событий для элементов корзины
+      document.querySelectorAll('.cart-quantity-btn.minus').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const productId = parseInt(e.target.getAttribute('data-id'));
+          const cart = getCart();
+          const item = cart.find(i => i.id === productId);
+          if (item && item.quantity > 1) {
+            updateQuantity(productId, item.quantity - 1);
+          }
+        });
+      });
+      
+      document.querySelectorAll('.cart-quantity-btn.plus').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const productId = parseInt(e.target.getAttribute('data-id'));
+          updateQuantity(productId, getCart().find(i => i.id === productId).quantity + 1);
+        });
+      });
+      
+      document.querySelectorAll('[data-remove]').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const productId = parseInt(e.target.getAttribute('data-remove'));
+          removeFromCart(productId);
+        });
+      });
+    }
+    
+    // Инициализация приложения
+    async function initApp() {
+      try {
+        setLoading(true);
+        
+        // Проверка аутентификации через Telegram
+        if (!Telegram.WebApp.initData) {
+          throw new Error('Не удалось получить данные аутентификации');
+        }
+        
+        // Загрузка данных пользователя
+        const userData = Telegram.WebApp.initDataUnsafe?.user;
+        if (!userData) {
+          throw new Error('Не удалось получить данные пользователя');
+        }
+        
+        // Загрузка данных с сервера (в реальном приложении)
+        // const serverProducts = await ApiClient.request('/products');
+        // products = serverProducts;
+        
+        updateCartCount();
+        renderCategories();
+        renderCatalog();
+        
+        // Обработчики навигации
+        document.getElementById('back-to-catalog').addEventListener('click', () => {
+          showPage('catalog');
+        });
+        
+        document.getElementById('back-to-catalog-from-cart').addEventListener('click', () => {
+          showPage('catalog');
+        });
+        
+        document.getElementById('cart-icon').addEventListener('click', () => {
+          showPage('cart');
+          renderCart();
+        });
+        
+        // Обработчик основной кнопки Telegram
+        Telegram.WebApp.MainButton.onClick(() => {
+          showPage('cart');
+          renderCart();
+        });
+        
+        // Обработчик поиска
+        document.getElementById('search').addEventListener('input', () => {
+          renderCatalog();
+        });
+        
+        // Обработчик оформления заказа
+        document.getElementById('checkout').addEventListener('click', () => {
+          document.getElementById('order-form').classList.remove('hidden');
+          checkoutButton.style.display = 'none';
+        });
+        
+        document.getElementById('submit-order').addEventListener('click', async () => {
+          if (!validateForm()) {
+            showNotification('Проверьте правильность заполнения формы', 'error');
+            return;
+          }
+          
+          try {
+            setLoading(true);
+            
+            const cart = getCart();
+            const orderData = {
+              items: cart.map(item => ({
+                id: item.id,
+                quantity: item.quantity,
+                product: products.find(p => p.id === item.id)
+              })),
+              total: cart.reduce((sum, item) => {
+                const product = products.find(p => p.id === item.id);
+                return sum + (product ? product.price * item.quantity : 0);
+              }, 0),
+              user: {
+                id: Telegram.WebApp.initDataUnsafe.user.id,
+                first_name: Telegram.WebApp.initDataUnsafe.user.first_name,
+                last_name: Telegram.WebApp.initDataUnsafe.user.last_name,
+                username: Telegram.WebApp.initDataUnsafe.user.username
+              },
+              delivery: {
+                name: document.getElementById('name').value,
+                phone: document.getElementById('phone').value,
+                address: document.getElementById('address').value
+              }
+            };
+            
+            // Отправка заказа на сервер
+            await ApiClient.createOrder(orderData);
+            
+            // Отображение успешного уведомления
+            showNotification(`Заказ оформлен! Сумма: ${orderData.total} руб.`);
+            
+            // Очистка корзины
+            clearCart();
+            
+            // Возврат к каталогу
+            setTimeout(() => {
+              showPage('catalog');
+            }, 1500);
+            
+          } catch (error) {
+            console.error('Order error:', error);
+            showNotification(`Ошибка оформления заказа: ${error.message}`, 'error');
+          } finally {
+            setLoading(false);
+          }
+        });
+        
+      } catch (error) {
+        console.error('Initialization error:', error);
+        showNotification(`Ошибка загрузки приложения: ${error.message}`, 'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    // Глобальные переменные
+    const CATEGORIES = [
+      { id: 'all', name: 'Все' },
+      { id: 'electronics', name: 'Электроника' },
+      { id: 'audio', name: 'Аудио' },
+      { id: 'smart_home', name: 'Умный дом' },
+      { id: 'gadgets', name: 'Гаджеты' }
+    ];
+    
+    let currentCategory = 'all';
+    
+    // Пример данных товаров с категориями
+    const products = [
+      { 
+        id: 1, 
+        name: "Смартфон X1", 
+        price: 25990, 
+        image: "https://via.placeholder.com/300/92c952",
+        description: "Современный смартфон с мощным процессором и отличной камерой. Подходит для игр и повседневного использования.",
+        category: 'electronics'
+      },
+      { 
+        id: 2, 
+        name: "Наушники Pro", 
+        price: 5990, 
+        image: "https://via.placeholder.com/300/771796",
+        description: "Беспроводные наушники с шумоподавлением и длительным временем работы от аккумулятора.",
+        category: 'audio'
+      },
+      { 
+        id: 3, 
+        name: "Смарт-часы", 
+        price: 12990, 
+        image: "https://via.placeholder.com/300/24f355",
+        description: "Умные часы с функцией отслеживания здоровья, погоды и уведомлениями со смартфона.",
+        category: 'electronics'
+      },
+      { 
+        id: 4, 
+        name: "Планшет Light", 
+        price: 18990, 
+        image: "https://via.placeholder.com/300/d32776",
+        description: "Легкий и компактный планшет для работы и развлечений с высококачественным дисплеем.",
+        category: 'electronics'
+      },
+      { 
+        id: 5, 
+        name: "Портативная колонка", 
+        price: 3490, 
+        image: "https://via.placeholder.com/300/f66b97",
+        description: "Компактная колонка с отличным звуком и возможностью подключения по Bluetooth.",
+        category: 'audio'
+      },
+      { 
+        id: 6, 
+        name: "Умная лампа", 
+        price: 2790, 
+        image: "https://via.placeholder.com/300/56a8c2",
+        description: "Светильник с регулируемой яркостью и цветовой температурой, управляемый через приложение.",
+        category: 'smart_home'
+      },
+      { 
+        id: 7, 
+        name: "Пауэрбанк Pro", 
+        price: 1990, 
+        image: "https://via.placeholder.com/300/e92777",
+        description: "Компактный пауэрбанк с быстрой зарядкой и USB-C портом.",
+        category: 'gadgets'
+      },
+      { 
+        id: 8, 
+        name: "Умные весы", 
+        price: 4590, 
+        image: "https://via.placeholder.com/300/3724ff",
+        description: "Весы с анализом состава тела и синхронизацией со смартфоном.",
+        category: 'smart_home'
+      }
+    ];
+    
+    // Запускаем приложение после полной загрузки
+    document.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>
