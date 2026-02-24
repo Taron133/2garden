@@ -24,7 +24,7 @@ module.exports = async (req, res) => {
   
   try {
     // Получаем все товары из базы данных
-    const { data, error } = await supabase
+    /*const { data, error } = await supabase
       .from('products')
       .select('*')
       .order('created_at', { ascending: false });
@@ -34,7 +34,8 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: 'Failed to fetch products' });
     }
     
-    return res.status(200).json(data);
+    return res.status(200).json(data);*/
+    return '';
   } catch (error) {
     console.error('Server error:', error);
     return res.status(500).json({ error: 'Internal server error' });

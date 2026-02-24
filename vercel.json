@@ -32,6 +32,11 @@
       "methods": ["POST", "OPTIONS"]
     },
     {
+      "src": "/api/logs",
+      "dest": "/api/logs.js",
+      "methods": ["POST", "OPTIONS"]
+    },
+    {
       "src": "/(.*)",
       "dest": "/public/$1",
       "check": true
