@@ -7,5 +7,8 @@
     "dev": "echo 'Run locally with a static server'"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  }
 }

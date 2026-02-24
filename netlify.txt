@@ -7,3 +7,5 @@ npm init -y
 npm install express body-parser axios date-fns
 
 node server/index.js
+
+NEXT_PUBLIC_DB

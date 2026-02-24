@@ -478,66 +478,70 @@
       TIMEOUT: 10000
     };
     
-    // Класс для работы с API
-    class ApiClient {
-      static async request(endpoint, method = 'GET', data = null) {
-        try {
-          const headers = {
-            'Content-Type': 'application/json',
-            'X-Telegram-Init-Data': Telegram.WebApp.initData
-          };
-          
-          const options = {
-            method,
-            headers,
-            signal: AbortSignal.timeout(API_CONFIG.TIMEOUT)
-          };
-          
-          if (data) {
-            options.body = JSON.stringify(data);
-          }
-          
-          const response = await fetch(`${API_CONFIG.BASE_URL}${endpoint}`, options);
-          
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => null);
-            const errorMessage = errorData?.message || `Ошибка ${response.status}`+' '+`${API_CONFIG.BASE_URL}${endpoint}`;
-            throw new Error(errorMessage);
-          }
-          
-          return response.json();
-        } catch (error) {
-          // Логируем ошибку на сервер
-          this.logError(endpoint, method, error.message);
-          throw error;
-        }
+// Класс для работы с API
+class ApiClient {
+  static async request(endpoint, method = 'GET', data = null) {
+    try {
+      const headers = {
+        'Content-Type': 'application/json',
+        'X-Telegram-Init-Data': Telegram.WebApp.initData
+      };
+      
+      const options = {
+        method,
+        headers,
+        signal: AbortSignal.timeout(API_CONFIG.TIMEOUT)
+      };
+      
+      if (data) {
+        options.body = JSON.stringify(data);
       }
       
-      static async logError(endpoint, method, errorMessage) {
-        try {
-          await fetch(`${API_CONFIG.BASE_URL}/logs.js`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Telegram-Init-Data': Telegram.WebApp.initData
-            },
-            body: JSON.stringify({
-              endpoint,
-              method,
-              error: errorMessage,
-              timestamp: new Date().toISOString(),
-              user: Telegram.WebApp.initDataUnsafe?.user?.id
-            })
-          });
-        } catch (logError) {
-          console.error('Failed to log error:', logError);
-        }
+      const response = await fetch(`${API_CONFIG.BASE_URL}${endpoint}`, options);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        const errorMessage = errorData?.message || `Ошибка ${response.status}`;
+        throw new Error(errorMessage);
       }
       
-      static async createOrder(orderData) {
-        return this.request('/orders.js', 'POST', orderData);
-      }
+      return response.json();
+    } catch (error) {
+      // Логируем ошибку на сервер
+      this.logError(endpoint, method, error.message);
+      throw error;
     }
+  }
+  
+  static async logError(endpoint, method, errorMessage) {
+    try {
+      await fetch(`${API_CONFIG.BASE_URL}/logs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Telegram-Init-Data': Telegram.WebApp.initData
+        },
+        body: JSON.stringify({
+          endpoint,
+          method,
+          error: errorMessage,
+          timestamp: new Date().toISOString(),
+          user: Telegram.WebApp.initDataUnsafe?.user?.id
+        })
+      });
+    } catch (logError) {
+      console.error('Failed to log error:', logError);
+    }
+  }
+  
+  static async getProducts() {
+    return this.request('/products');
+  }
+  
+  static async createOrder(orderData) {
+    return this.request('/orders', 'POST', orderData);
+  }
+}
     
     // Управление уведомлениями
     function showNotification(message, type = 'success') {
@@ -868,123 +872,133 @@
       });
     }
     
-    // Инициализация приложения
-    async function initApp() {
+  async function initApp() {
+  try {
+    setLoading(true);
+    
+    // Проверка аутентификации через Telegram
+    if (!Telegram.WebApp.initData) {
+      throw new Error('Не удалось получить данные аутентификации');
+    }
+    
+    // Загрузка данных пользователя
+    const userData = Telegram.WebApp.initDataUnsafe?.user;
+    if (!userData) {
+      throw new Error('Не удалось получить данные пользователя');
+    }
+    
+    // Загрузка данных с сервера
+    try {
+      products = await ApiClient.getProducts();
+    } catch (error) {
+      console.error('Failed to load products:', error);
+      showNotification(`Ошибка загрузки товаров: ${error.message}`, 'error');
+      // Используем тестовые данные только для разработки
+      products = [
+        { id: 1, name: "Смартфон X1", price: 25990, category: 'electronics', 
+          image: "https://via.placeholder.com/300/92c952",
+          description: "Современный смартфон с мощным процессором и отличной камерой." },
+        // ... другие тестовые данные
+      ];
+    }
+    
+    updateCartCount();
+    renderCategories();
+    renderCatalog();
+    
+    // Обработчики навигации
+    document.getElementById('back-to-catalog').addEventListener('click', () => {
+      showPage('catalog');
+    });
+    
+    document.getElementById('back-to-catalog-from-cart').addEventListener('click', () => {
+      showPage('catalog');
+    });
+    
+    document.getElementById('cart-icon').addEventListener('click', () => {
+      showPage('cart');
+      renderCart();
+    });
+    
+    // Обработчик основной кнопки Telegram
+    Telegram.WebApp.MainButton.onClick(() => {
+      showPage('cart');
+      renderCart();
+    });
+    
+    // Обработчик поиска
+    document.getElementById('search').addEventListener('input', () => {
+      renderCatalog();
+    });
+    
+    // Обработчик оформления заказа
+    document.getElementById('checkout').addEventListener('click', () => {
+      document.getElementById('order-form').classList.remove('hidden');
+      document.getElementById('checkout').style.display = 'none';
+    });
+    
+    document.getElementById('submit-order').addEventListener('click', async () => {
+      if (!validateForm()) {
+        showNotification('Проверьте правильность заполнения формы', 'error');
+        return;
+      }
+      
       try {
         setLoading(true);
         
-        // Проверка аутентификации через Telegram
-        if (!Telegram.WebApp.initData) {
-          throw new Error('Не удалось получить данные аутентификации');
-        }
-        
-        // Загрузка данных пользователя
-        const userData = Telegram.WebApp.initDataUnsafe?.user;
-        if (!userData) {
-          throw new Error('Не удалось получить данные пользователя');
-        }
-        
-        // Загрузка данных с сервера (в реальном приложении)
-        // const serverProducts = await ApiClient.request('/products');
-        // products = serverProducts;
-        
-        updateCartCount();
-        renderCategories();
-        renderCatalog();
-        
-        // Обработчики навигации
-        document.getElementById('back-to-catalog').addEventListener('click', () => {
-          showPage('catalog');
-        });
-        
-        document.getElementById('back-to-catalog-from-cart').addEventListener('click', () => {
-          showPage('catalog');
-        });
-        
-        document.getElementById('cart-icon').addEventListener('click', () => {
-          showPage('cart');
-          renderCart();
-        });
-        
-        // Обработчик основной кнопки Telegram
-        Telegram.WebApp.MainButton.onClick(() => {
-          showPage('cart');
-          renderCart();
-        });
-        
-        // Обработчик поиска
-        document.getElementById('search').addEventListener('input', () => {
-          renderCatalog();
-        });
-        
-        // Обработчик оформления заказа
-        document.getElementById('checkout').addEventListener('click', () => {
-          document.getElementById('order-form').classList.remove('hidden');
-          checkoutButton.style.display = 'none';
-        });
-        
-        document.getElementById('submit-order').addEventListener('click', async () => {
-          if (!validateForm()) {
-            showNotification('Проверьте правильность заполнения формы', 'error');
-            return;
+        const cart = getCart();
+        const orderData = {
+          items: cart.map(item => ({
+            id: item.id,
+            quantity: item.quantity,
+            product: products.find(p => p.id === item.id)
+          })),
+          total: cart.reduce((sum, item) => {
+            const product = products.find(p => p.id === item.id);
+            return sum + (product ? product.price * item.quantity : 0);
+          }, 0),
+          user: {
+            id: Telegram.WebApp.initDataUnsafe.user.id,
+            first_name: Telegram.WebApp.initDataUnsafe.user.first_name,
+            last_name: Telegram.WebApp.initDataUnsafe.user.last_name,
+            username: Telegram.WebApp.initDataUnsafe.user.username
+          },
+          delivery: {
+            name: document.getElementById('name').value,
+            phone: document.getElementById('phone').value,
+            address: document.getElementById('address').value
           }
-          
-          try {
-            setLoading(true);
-            
-            const cart = getCart();
-            const orderData = {
-              items: cart.map(item => ({
-                id: item.id,
-                quantity: item.quantity,
-                product: products.find(p => p.id === item.id)
-              })),
-              total: cart.reduce((sum, item) => {
-                const product = products.find(p => p.id === item.id);
-                return sum + (product ? product.price * item.quantity : 0);
-              }, 0),
-              user: {
-                id: Telegram.WebApp.initDataUnsafe.user.id,
-                first_name: Telegram.WebApp.initDataUnsafe.user.first_name,
-                last_name: Telegram.WebApp.initDataUnsafe.user.last_name,
-                username: Telegram.WebApp.initDataUnsafe.user.username
-              },
-              delivery: {
-                name: document.getElementById('name').value,
-                phone: document.getElementById('phone').value,
-                address: document.getElementById('address').value
-              }
-            };
-            
-            // Отправка заказа на сервер
-            await ApiClient.createOrder(orderData);
-            
-            // Отображение успешного уведомления
-            showNotification(`Заказ оформлен! Сумма: ${orderData.total} руб.`);
-            
-            // Очистка корзины
-            clearCart();
-            
-            // Возврат к каталогу
-            setTimeout(() => {
-              showPage('catalog');
-            }, 1500);
-            
-          } catch (error) {
-            console.error('Order error:', error);
-            showNotification(`Ошибка оформления заказа: ${error.message}`, 'error');
-          } finally {
-            setLoading(false);
-          }
-        });
+        };
+        
+        // Отправка заказа на сервер
+        await ApiClient.createOrder(orderData);
+        
+        // Отображение успешного уведомления
+        showNotification(`Заказ оформлен! Сумма: ${orderData.total} руб.`);
+        
+        // Очистка корзины
+        clearCart();
+        
+        // Возврат к каталогу
+        setTimeout(() => {
+          showPage('catalog');
+        }, 1500);
         
       } catch (error) {
-        console.error('Initialization error:', error);
-        showNotification(`Ошибка загрузки приложения: ${error.message}`, 'error');
+        console.error('Order error:', error);
+        showNotification(`Ошибка оформления заказа: ${error.message}`, 'error');
       } finally {
         setLoading(false);
       }
-    }
+    });
+    
+  } catch (error) {
+    console.error('Initialization error:', error);
+    showNotification(`Ошибка загрузки приложения: ${error.message}`, 'error');
+  } finally {
+    setLoading(false);
+  }
+}
     
     // Глобальные переменные
     const CATEGORIES = [
