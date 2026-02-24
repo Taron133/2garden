@@ -6,7 +6,7 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'X-Telegram-Init-Data, Content-Type');
     res.status(200).end();
     return;
@@ -15,7 +15,7 @@ module.exports = async (req, res) => {
   // Установка CORS заголовков
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'X-Telegram-Init-Data, Content-Type');
 
   // Проверка аутентификации
@@ -49,13 +49,56 @@ module.exports = async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized: Invalid hash' });
     }
     
-    // Проверка, является ли пользователь администратором
+    // Извлекаем данные пользователя
     const user = urlParams.get('user') ? JSON.parse(decodeURIComponent(urlParams.get('user'))) : null;
-    if (!user || String(user.id) !== process.env.GARDEN_ADMIN_TELEGRAM_ID) {
+    
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid user data' });
+    }
+    
+    // Проверка, является ли пользователь администратором
+    const { data: admin, error: adminError } = await supabase
+      .from('admins')
+      .select('telegram_id')
+      .eq('telegram_id', user.id)
+      .maybeSingle();
+    
+    if (adminError || !admin) {
+      // Логируем попытку неавторизованного доступа
+      await supabase
+        .from('admin_access_attempts')
+        .insert({
+          telegram_id: user.id,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          username: user.username,
+          attempt_time: new Date().toISOString(),
+          endpoint: req.url,
+          method: req.method
+        });
+      
       return res.status(403).json({ error: 'Forbidden: Not an admin' });
     }
     
-    // Обработка POST запроса
+    // Устанавливаем заголовок с Telegram ID для RLS
+    supabase.auth.api.headers['x-telegram-id'] = user.id.toString();
+    
+    // Обработка GET запроса (получение всех товаров)
+    if (req.method === 'GET') {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Supabase error:', error);
+        return res.status(500).json({ error: 'Failed to fetch products' });
+      }
+      
+      return res.status(200).json(data);
+    }
+    
+    // Обработка POST запроса (создание нового товара)
     if (req.method === 'POST') {
       const { name, price, category, image, description } = req.body;
       
@@ -72,7 +115,7 @@ module.exports = async (req, res) => {
       }
       
       // Сохраняем товар в Supabase
-      const { data, error } = await supabase
+      const { data, error: insertError } = await supabase
         .from('products')
         .insert({
           name,
@@ -84,9 +127,9 @@ module.exports = async (req, res) => {
         .select()
         .single();
       
-      if (error) {
-        console.error('Supabase error:', error);
-        return res.status(500).json({ error: 'Failed to save product', data:data, error:error.message });
+      if (insertError) {
+        console.error('Supabase insert error:', insertError);
+        return res.status(500).json({ error: 'Failed to save product' });
       }
       
       return res.status(201).json({ 
@@ -94,10 +137,76 @@ module.exports = async (req, res) => {
         product: data,
         message: 'Товар успешно добавлен'
       });
-    } else {
-      res.setHeader('Allow', ['POST', 'OPTIONS']);
-      return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
     }
+    
+    // Обработка PUT запроса (обновление товара)
+    if (req.method === 'PUT') {
+      const productId = req.url.split('/').pop();
+      const { name, price, category, image, description } = req.body;
+      
+      // Валидация данных
+      if (!name || !price || !category || !image || !description) {
+        return res.status(400).json({ 
+          error: 'Missing required fields', 
+          required: ['name', 'price', 'category', 'image', 'description'] 
+        });
+      }
+      
+      if (typeof price !== 'number' || price <= 0) {
+        return res.status(400).json({ error: 'Invalid price' });
+      }
+      
+      // Обновляем товар в Supabase
+      const { data, error: updateError } = await supabase
+        .from('products')
+        .update({
+          name,
+          price,
+          category,
+          image,
+          description,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', productId)
+        .select()
+        .single();
+      
+      if (updateError) {
+        console.error('Supabase update error:', updateError);
+        return res.status(500).json({ error: 'Failed to update product' });
+      }
+      
+      return res.status(200).json({ 
+        success: true,
+        product: data,
+        message: 'Товар успешно обновлен'
+      });
+    }
+    
+    // Обработка DELETE запроса (удаление товара)
+    if (req.method === 'DELETE') {
+      const productId = req.url.split('/').pop();
+      
+      // Удаляем товар из Supabase
+      const { error: deleteError } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId);
+      
+      if (deleteError) {
+        console.error('Supabase delete error:', deleteError);
+        return res.status(500).json({ error: 'Failed to delete product' });
+      }
+      
+      return res.status(200).json({ 
+        success: true,
+        message: 'Товар успешно удален'
+      });
+    }
+    
+    // Неподдерживаемый метод
+    res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']);
+    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   } catch (error) {
     console.error('Admin product error:', error);
     return res.status(500).json({ error: 'Failed to process request' });

@@ -473,8 +473,10 @@
   </div>
   
   <div id="admin-content" class="hidden">
-    <div class="order-form">
-      <h3>Добавить новый товар</h3>
+    <div class="order-form" id="product-form-container">
+      <h3 id="product-form-title">Добавить новый товар</h3>
+      
+      <input type="hidden" id="edit-product-id">
       
       <div class="form-group">
         <label for="product-name">Название</label>
@@ -510,7 +512,8 @@
         <div class="error-message">Введите описание товара</div>
       </div>
       
-      <button class="btn" id="add-product-btn">Добавить товар</button>
+      <button class="btn" id="product-form-btn">Добавить товар</button>
+      <button class="btn btn-back hidden" id="cancel-edit-btn">Отменить редактирование</button>
     </div>
     
     <div class="order-form">
@@ -547,6 +550,11 @@ class ApiClient {
         'X-Telegram-Init-Data': Telegram.WebApp.initData
       };
       
+      // Добавляем Telegram ID в заголовки
+      if (Telegram.WebApp.initDataUnsafe?.user?.id) {
+        headers['X-Telegram-Id'] = Telegram.WebApp.initDataUnsafe.user.id.toString();
+      }
+      
       const options = {
         method,
         headers,
@@ -559,10 +567,21 @@ class ApiClient {
       
       const response = await fetch(`${API_CONFIG.BASE_URL}${endpoint}`, options);
       
+      // Обработка 403 ошибок
+      if (response.status === 403) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Доступ запрещен');
+      }
+      
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
         const errorMessage = errorData?.message || `Ошибка ${response.status}`;
         throw new Error(errorMessage);
+      }
+      
+      // Пустой ответ для DELETE запросов
+      if (method === 'DELETE' || response.status === 204) {
+        return { success: true };
       }
       
       return response.json();
@@ -570,6 +589,43 @@ class ApiClient {
       // Логируем ошибку на сервер
       this.logError(endpoint, method, error.message);
       throw error;
+    }
+  }
+  
+  static async getAdminProducts() {
+    return this.request('/admin/products');
+  }
+  
+  static async createProduct(productData) {
+    return this.request('/admin/products', 'POST', productData);
+  }
+  
+  static async updateProduct(productId, productData) {
+    return this.request(`/admin/products/${productId}`, 'PUT', productData);
+  }
+  
+  static async deleteProduct(productId) {
+    return this.request(`/admin/products/${productId}`, 'DELETE');
+  }
+  
+  static async logError(endpoint, method, errorMessage) {
+    try {
+      await fetch(`${API_CONFIG.BASE_URL}/logs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Telegram-Init-Data': Telegram.WebApp.initData
+        },
+        body: JSON.stringify({
+          endpoint,
+          method,
+          error: errorMessage,
+          timestamp: new Date().toISOString(),
+          user: Telegram.WebApp.initDataUnsafe?.user?.id
+        })
+      });
+    } catch (logError) {
+      console.error('Failed to log error:', logError);
     }
   }
 
@@ -591,27 +647,6 @@ class ApiClient {
     } catch (error) {
       console.error('Admin check error:', error);
       return false;
-    }
-  }
-  
-  static async logError(endpoint, method, errorMessage) {
-    try {
-      await fetch(`${API_CONFIG.BASE_URL}/logs`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Telegram-Init-Data': Telegram.WebApp.initData
-        },
-        body: JSON.stringify({
-          endpoint,
-          method,
-          error: errorMessage,
-          timestamp: new Date().toISOString(),
-          user: Telegram.WebApp.initDataUnsafe?.user?.id
-        })
-      });
-    } catch (logError) {
-      console.error('Failed to log error:', logError);
     }
   }
   
@@ -968,7 +1003,7 @@ class ApiClient {
       throw new Error('Не удалось получить данные пользователя');
     }
     
-    // Проверка прав администратора (на сервере)
+    // Проверка прав администратора
     let isAdmin = false;
     try {
       const adminCheck = await fetch(`${API_CONFIG.BASE_URL}/admin/check`, {
@@ -982,7 +1017,6 @@ class ApiClient {
       isAdmin = adminData.isAdmin;
     } catch (error) {
       console.error('Admin check failed:', error);
-      // Не показываем ошибку пользователю, просто считаем, что он не администратор
     }
     
     // Добавляем кнопку администратора, если пользователь является администратором
@@ -1003,19 +1037,22 @@ class ApiClient {
     
     // Загрузка данных с сервера
     try {
-      const serverProducts = await ApiClient.getProducts();
-      products = serverProducts;
+      products = await ApiClient.getProducts();
     } catch (error) {
       console.error('Failed to load products:', error);
       showNotification(`Ошибка загрузки товаров: ${error.message}`, 'error');
+      // Используем тестовые данные только для разработки
+      products = [
+        { id: 1, name: "Смартфон X1", price: 25990, category: 'electronics', 
+          image: "https://via.placeholder.com/300/92c952",
+          description: "Современный смартфон с мощным процессором и отличной камерой." },
+        // ... другие тестовые данные
+      ];
     }
     
     updateCartCount();
     renderCategories();
     renderCatalog();
-    
-    // ... остальной код инициализации без изменений
-    
     
     // Обработчики навигации
     document.getElementById('back-to-catalog').addEventListener('click', () => {
@@ -1102,7 +1139,7 @@ class ApiClient {
         setLoading(false);
       }
     });
-
+    
   } catch (error) {
     console.error('Initialization error:', error);
     showNotification(`Ошибка загрузки приложения: ${error.message}`, 'error');
@@ -1381,6 +1418,258 @@ document.getElementById('add-product-btn').addEventListener('click', async () =>
 document.getElementById('back-to-catalog-from-admin').addEventListener('click', () => {
   showPage('catalog');
 });
+
+
+
+// Глобальная переменная для отслеживания режима редактирования
+let isEditing = false;
+let currentEditProductId = null;
+
+// Функция загрузки товаров для администратора
+function loadProductsForAdmin() {
+  const productsList = document.getElementById('products-list');
+  productsList.innerHTML = '<div class="loading-spinner" style="margin: 20px auto;"></div>';
+  
+  ApiClient.request('/admin/products')
+    .then(data => {
+      if (data.length === 0) {
+        productsList.innerHTML = '<div class="cart-empty">Товары не найдены</div>';
+        return;
+      }
+      
+      let html = '';
+      data.forEach(product => {
+        html += `
+          <div class="cart-item" data-product-id="${product.id}">
+            <div class="cart-item-info">
+              <div class="cart-item-name">${product.name}</div>
+              <div class="product-price">${product.price} руб.</div>
+              <div>Категория: ${product.category}</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="cart-quantity-btn edit-product" title="Редактировать">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
+                </svg>
+              </button>
+              <button class="cart-quantity-btn" style="background: #ff3b30; color: white;" class="delete-product" title="Удалить">✕</button>
+            </div>
+          </div>
+        `;
+      });
+      
+      productsList.innerHTML = html;
+      
+      // Добавляем обработчики редактирования
+      document.querySelectorAll('.edit-product').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const productId = e.currentTarget.closest('.cart-item').dataset.productId;
+          loadProductForEdit(productId);
+        });
+      });
+      
+      // Добавляем обработчики удаления
+      document.querySelectorAll('.delete-product').forEach(button => {
+        button.addEventListener('click', async (e) => {
+          const productId = e.currentTarget.closest('.cart-item').dataset.productId;
+          deleteProduct(productId);
+        });
+      });
+    })
+    .catch(error => {
+      productsList.innerHTML = `<div class="cart-empty" style="color: #ff3b30;">Ошибка загрузки: ${error.message}</div>`;
+    });
+}
+
+// Функция загрузки товара для редактирования
+function loadProductForEdit(productId) {
+  setLoading(true);
+  
+  ApiClient.request(`/admin/products/${productId}`)
+    .then(product => {
+      // Заполняем форму данными товара
+      document.getElementById('edit-product-id').value = product.id;
+      document.getElementById('product-name').value = product.name;
+      document.getElementById('product-price').value = product.price;
+      document.getElementById('product-category').value = product.category;
+      document.getElementById('product-image').value = product.image;
+      document.getElementById('product-description').value = product.description;
+      
+      // Меняем заголовок и текст кнопки
+      document.getElementById('product-form-title').textContent = 'Редактировать товар';
+      document.getElementById('product-form-btn').textContent = 'Сохранить изменения';
+      document.getElementById('cancel-edit-btn').classList.remove('hidden');
+      
+      // Устанавливаем режим редактирования
+      isEditing = true;
+      currentEditProductId = productId;
+      
+      // Прокручиваем к форме
+      document.getElementById('product-form-container').scrollIntoView({ behavior: 'smooth' });
+      
+      setLoading(false);
+    })
+    .catch(error => {
+      setLoading(false);
+      showNotification(`Ошибка загрузки товара: ${error.message}`, 'error');
+    });
+}
+
+// Функция отмены редактирования
+function cancelEdit() {
+  // Сбрасываем форму
+  document.getElementById('edit-product-id').value = '';
+  document.getElementById('product-name').value = '';
+  document.getElementById('product-price').value = '';
+  document.getElementById('product-image').value = '';
+  document.getElementById('product-description').value = '';
+  
+  // Возвращаем исходные значения
+  document.getElementById('product-form-title').textContent = 'Добавить новый товар';
+  document.getElementById('product-form-btn').textContent = 'Добавить товар';
+  document.getElementById('cancel-edit-btn').classList.add('hidden');
+  
+  // Сбрасываем режим редактирования
+  isEditing = false;
+  currentEditProductId = null;
+}
+
+// Функция удаления товара
+function deleteProduct(productId) {
+  if (!confirm('Вы действительно хотите удалить этот товар? Это действие нельзя отменить.')) {
+    return;
+  }
+  
+  setLoading(true);
+  
+  ApiClient.request(`/admin/products/${productId}`, 'DELETE')
+    .then(response => {
+      showNotification(response.message || 'Товар удален');
+      loadProductsForAdmin();
+      
+      // Если удаляется редактируемый товар, отменяем редактирование
+      if (isEditing && currentEditProductId === productId) {
+        cancelEdit();
+      }
+    })
+    .catch(error => {
+      showNotification(`Ошибка при удалении: ${error.message}`, 'error');
+    })
+    .finally(() => {
+      setLoading(false);
+    });
+}
+
+// Функция валидации формы товара
+function validateProductForm() {
+  const name = document.getElementById('product-name').value.trim();
+  const price = parseFloat(document.getElementById('product-price').value);
+  const image = document.getElementById('product-image').value.trim();
+  const description = document.getElementById('product-description').value.trim();
+  
+  // Сброс ошибок
+  document.querySelectorAll('.form-group').forEach(group => {
+    group.classList.remove('error');
+  });
+  
+  let isValid = true;
+  
+  // Проверка названия
+  if (!name) {
+    document.getElementById('product-name').closest('.form-group').classList.add('error');
+    isValid = false;
+  }
+  
+  // Проверка цены
+  if (isNaN(price) || price <= 0) {
+    document.getElementById('product-price').closest('.form-group').classList.add('error');
+    isValid = false;
+  }
+  
+  // Проверка URL изображения
+  if (image && !isValidUrl(image)) {
+    document.getElementById('product-image').closest('.form-group').classList.add('error');
+    isValid = false;
+  }
+  
+  // Проверка описания
+  if (!description) {
+    document.getElementById('product-description').closest('.form-group').classList.add('error');
+    isValid = false;
+  }
+  
+  return isValid;
+}
+
+// Вспомогательная функция для проверки URL
+function isValidUrl(string) {
+  try {
+    new URL(string);
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+// Обработчик отправки формы товара
+document.getElementById('product-form-btn').addEventListener('click', async () => {
+  if (!validateProductForm()) {
+    showNotification('Проверьте правильность заполнения формы', 'error');
+    return;
+  }
+  
+  const name = document.getElementById('product-name').value.trim();
+  const price = parseFloat(document.getElementById('product-price').value);
+  const category = document.getElementById('product-category').value;
+  const image = document.getElementById('product-image').value.trim();
+  const description = document.getElementById('product-description').value.trim();
+  
+  setLoading(true);
+  
+  try {
+    const productData = {
+      name,
+      price,
+      category,
+      image,
+      description
+    };
+    
+    let response;
+    
+    if (isEditing && currentEditProductId) {
+      // Режим редактирования
+      response = await ApiClient.request(`/admin/products/${currentEditProductId}`, 'PUT', productData);
+      showNotification(response.message || 'Товар успешно обновлен!');
+    } else {
+      // Режим добавления
+      response = await ApiClient.request('/admin/products', 'POST', productData);
+      showNotification(response.message || 'Товар успешно добавлен!');
+      
+      // Сброс формы после добавления
+      document.getElementById('product-name').value = '';
+      document.getElementById('product-price').value = '';
+      document.getElementById('product-image').value = '';
+      document.getElementById('product-description').value = '';
+    }
+    
+    // Обновление списка товаров
+    loadProductsForAdmin();
+    
+  } catch (error) {
+    showNotification(`Ошибка: ${error.message}`, 'error');
+  } finally {
+    setLoading(false);
+  }
+});
+
+// Обработчик отмены редактирования
+document.getElementById('cancel-edit-btn').addEventListener('click', () => {
+  cancelEdit();
+});
+
+
+
   </script>
 </body>
 </html>
