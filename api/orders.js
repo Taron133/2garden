@@ -3,7 +3,7 @@ const crypto = require('crypto');
 
 // Функция для отправки сообщения через Telegram Bot API
 async function sendTelegramMessage(chatId, text, replyMarkup = null) {
-  const botToken = process.env.BOT_TOKEN;
+  const botToken = process.env.GARDEN_BOT_TOKEN;
   const telegramApiUrl = process.env.TELEGRAM_API_URL;
   
   if (!botToken || !telegramApiUrl) {
@@ -35,7 +35,7 @@ async function sendTelegramMessage(chatId, text, replyMarkup = null) {
 
 // Функция для отправки уведомления администратору
 async function sendOrderNotification(orderId, orderData) {
-  const adminChatId = process.env.ADMIN_TELEGRAM_ID;
+  const adminChatId = process.env.GARDEN_ADMIN_TELEGRAM_ID;
   
   if (!adminChatId) {
     throw new Error('ADMIN_TELEGRAM_ID is not set');
@@ -92,7 +92,7 @@ module.exports = async (req, res) => {
   
   try {
     // Проверяем подпись
-    const BOT_TOKEN = process.env.BOT_TOKEN;
+    const BOT_TOKEN = process.env.GARDEN_BOT_TOKEN;
     if (!BOT_TOKEN) {
       throw new Error('BOT_TOKEN is not set');
     }
@@ -185,7 +185,7 @@ const crypto = require('crypto');
 
 // Функция для отправки сообщения через Telegram Bot API
 async function sendTelegramMessage(chatId, text, replyMarkup = null) {
-  const botToken = process.env.BOT_TOKEN;
+  const botToken = process.env.GARDEN_BOT_TOKEN;
   const telegramApiUrl = process.env.TELEGRAM_API_URL;
   
   if (!botToken || !telegramApiUrl) {
@@ -217,7 +217,7 @@ async function sendTelegramMessage(chatId, text, replyMarkup = null) {
 
 // Функция для отправки уведомления администратору
 async function sendOrderNotification(orderId, orderData) {
-  const adminChatId = process.env.ADMIN_TELEGRAM_ID;
+  const adminChatId = process.env.GARDEN_ADMIN_TELEGRAM_ID;
   
   if (!adminChatId) {
     throw new Error('ADMIN_TELEGRAM_ID is not set');
@@ -274,7 +274,7 @@ module.exports = async (req, res) => {
   
   try {
     // Проверяем подпись
-    const BOT_TOKEN = process.env.BOT_TOKEN;
+    const BOT_TOKEN = process.env.GARDEN_BOT_TOKEN;
     if (!BOT_TOKEN) {
       throw new Error('BOT_TOKEN is not set');
     }

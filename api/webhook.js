@@ -32,7 +32,7 @@ module.exports = async (req, res) => {
   const text = message.text;
   
   // Проверяем, является ли отправитель администратором
-  if (String(adminChatId) !== process.env.ADMIN_TELEGRAM_ID) {
+  if (String(adminChatId) !== process.env.GARDEN_ADMIN_TELEGRAM_ID) {
     return res.status(200).json({ success: true }); // Не обрабатываем сообщения от не-администраторов
   }
   
@@ -108,7 +108,7 @@ module.exports = async (req, res) => {
 
 // Вспомогательная функция для отправки сообщений
 async function sendTelegramMessage(chatId, text) {
-  const botToken = process.env.BOT_TOKEN;
+  const botToken = process.env.GARDEN_BOT_TOKEN;
   const telegramApiUrl = process.env.TELEGRAM_API_URL;
   
   if (!botToken || !telegramApiUrl) {

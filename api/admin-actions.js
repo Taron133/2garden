@@ -33,7 +33,7 @@ module.exports = async (req, res) => {
   const adminChatId = from.id;
   
   // Проверяем, является ли отправитель администратором
-  if (String(adminChatId) !== process.env.ADMIN_TELEGRAM_ID) {
+  if (String(adminChatId) !== process.env.GARDEN_ADMIN_TELEGRAM_ID) {
     return res.status(403).json({ error: 'Forbidden' });
   }
   
@@ -130,7 +130,7 @@ module.exports = async (req, res) => {
 
 // Вспомогательные функции
 async function sendTelegramMessage(chatId, text, replyMarkup = null) {
-  const botToken = process.env.BOT_TOKEN;
+  const botToken = process.env.GARDEN_BOT_TOKEN;
   const telegramApiUrl = process.env.TELEGRAM_API_URL;
   
   if (!botToken || !telegramApiUrl) {
@@ -161,7 +161,7 @@ async function sendTelegramMessage(chatId, text, replyMarkup = null) {
 }
 
 async function answerCallback(callbackId, text) {
-  const botToken = process.env.BOT_TOKEN;
+  const botToken = process.env.GARDEN_BOT_TOKEN;
   const telegramApiUrl = process.env.TELEGRAM_API_URL;
   
   if (!botToken || !telegramApiUrl) {
