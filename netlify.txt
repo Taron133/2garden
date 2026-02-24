@@ -1,5 +1,7 @@
 https://genuine-druid-7e629a.netlify.app/
 
+https://2garden.vercel.app/
+
 cd garden
 npm init -y
 npm install express body-parser axios date-fns
