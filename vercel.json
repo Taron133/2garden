@@ -1,19 +1,24 @@
 {
   "version": 2,
-  "buildCommand": "npm run vercel-build",
-  "outputDirectory": ".",
-  "routes": [
+  "builds": [
     {
-      "handle": "filesystem"
+      "src": "public/index.html",
+      "use": "@vercel/static"
     },
     {
+      "src": "api/*.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
       "src": "/api/(.*)",
-      "dest": "/api/$1.js"
+      "dest": "/api/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/index.html",
-      "status": 404
+      "dest": "/public/$1",
+      "check": true
     }
   ]
 }
