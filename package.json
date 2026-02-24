@@ -1,11 +1,9 @@
 {
   "name": "telegram-mini-app",
   "version": "1.0.0",
-  "description": "Telegram Mini App with product catalog and cart",
+  "private": true,
   "scripts": {
-    "build": "echo 'No build needed for static site'",
-    "dev": "echo 'Run locally with a static server'"
-  },
-  "author": "",
-  "license": "ISC"
+    "build": "echo 'No build needed'",
+    "vercel-build": "cp -r static/* ."
+  }
 }
