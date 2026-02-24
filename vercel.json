@@ -1,8 +1,5 @@
 {
   "version": 2,
-  "public": true,
-  "cleanUrls": true,
-  "trailingSlash": false,
   "rewrites": [
     { "source": "/api/orders", "destination": "/api/orders.js" },
     { "source": "/api/logs", "destination": "/api/logs.js" },
