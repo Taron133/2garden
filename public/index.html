@@ -474,7 +474,7 @@
     
     // Конфигурация API
     const API_CONFIG = {
-      BASE_URL: 'https://2garden.vercel.app/api/' /*window.location.origin + '/api'*/,
+      BASE_URL: 'https://2garden.vercel.app/api' /*window.location.origin + '/api'*/,
       TIMEOUT: 10000
     };
     
@@ -501,7 +501,7 @@
           
           if (!response.ok) {
             const errorData = await response.json().catch(() => null);
-            const errorMessage = errorData?.message || `Ошибка ${response.status}`;
+            const errorMessage = errorData?.message || `Ошибка ${response.status}`+' '+`${API_CONFIG.BASE_URL}${endpoint}`;
             throw new Error(errorMessage);
           }
           
