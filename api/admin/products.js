@@ -77,7 +77,7 @@ module.exports = async (req, res) => {
       }
       console.error('444');
       // Сохраняем товар в Supabase
-      const { data, error } = await supabase
+      /*const { data, error } =*/ await supabase
         .from('products')
         .insert({
           name,
@@ -86,13 +86,13 @@ module.exports = async (req, res) => {
           image,
           description
         })
-        .select()
-        .single();
+        /*.select()
+        .single()*/;
       console.error('555');
-      if (error) {
+      /*if (error) {
         console.error('Supabase error:', error);
         return res.status(500).json({ error: 'Failed to save product' });
-      }
+      }*/
       console.error('666');
       return res.status(201).json({ 
         success: true,
