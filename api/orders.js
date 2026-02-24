@@ -67,7 +67,7 @@ module.exports = async (req, res) => {
         total,
         delivery,
         timestamp: new Date().toISOString()
-      });
+      }); 
       
       // Имитация сохранения заказа
       return res.status(201).json({ 
