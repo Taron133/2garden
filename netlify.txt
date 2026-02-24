@@ -1,0 +1,7 @@
+https://genuine-druid-7e629a.netlify.app/
+
+cd garden
+npm init -y
+npm install express body-parser axios date-fns
+
+node server/index.js
