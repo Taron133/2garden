@@ -2,11 +2,10 @@
   "name": "telegram-mini-app",
   "version": "1.0.0",
   "description": "Telegram Mini App with product catalog and cart",
-  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "echo 'No build needed for static site'",
+    "dev": "echo 'Run locally with a static server'"
   },
-  "keywords": [],
   "author": "",
   "license": "ISC"
 }
