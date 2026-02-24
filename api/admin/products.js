@@ -1,4 +1,4 @@
-const supabase = require('../supabase');
+const { createSupabaseClient } = require('../supabase');
 const crypto = require('crypto');
 
 module.exports = async (req, res) => {
@@ -56,8 +56,13 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Invalid user data' });
     }
     
+    // Создаем клиент Supabase с заголовком x-telegram-id
+    const supabase = createSupabaseClient({
+      'x-telegram-id': user.id.toString()
+    });
+    
     // Проверка, является ли пользователь администратором
-    const { data: admin, error: adminError } = await supabase
+    const {  admin, error: adminError } = await supabase
       .from('admins')
       .select('telegram_id')
       .eq('telegram_id', user.id)
@@ -65,7 +70,8 @@ module.exports = async (req, res) => {
     
     if (adminError || !admin) {
       // Логируем попытку неавторизованного доступа
-      await supabase
+      const accessSupabase = createSupabaseClient();
+      await accessSupabase
         .from('admin_access_attempts')
         .insert({
           telegram_id: user.id,
@@ -74,14 +80,15 @@ module.exports = async (req, res) => {
           username: user.username,
           attempt_time: new Date().toISOString(),
           endpoint: req.url,
-          method: req.method
+          method: req.method,
+          details: {
+            ip: req.headers['x-forwarded-for']?.split(',')[0] || req.connection.remoteAddress,
+            user_agent: req.headers['user-agent']
+          }
         });
       
       return res.status(403).json({ error: 'Forbidden: Not an admin' });
     }
-    
-    // Устанавливаем заголовок с Telegram ID для RLS
-    supabase.auth.api.headers['x-telegram-id'] = user.id.toString();
     
     // Обработка GET запроса (получение всех товаров)
     if (req.method === 'GET') {
@@ -92,7 +99,7 @@ module.exports = async (req, res) => {
       
       if (error) {
         console.error('Supabase error:', error);
-        return res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: 'Failed to fetch products' });
       }
       
       return res.status(200).json(data);
@@ -129,8 +136,22 @@ module.exports = async (req, res) => {
       
       if (insertError) {
         console.error('Supabase insert error:', insertError);
-        return res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: 'Failed to save product' });
       }
+      
+      // Логируем успешное добавление товара
+      await supabase
+        .from('admin_activity')
+        .insert({
+          telegram_id: user.id,
+          action: 'create',
+          target_type: 'product',
+          target_id: data.id,
+          details: {
+            name: data.name,
+            price: data.price
+          }
+        });
       
       return res.status(201).json({ 
         success: true,
@@ -173,8 +194,27 @@ module.exports = async (req, res) => {
       
       if (updateError) {
         console.error('Supabase update error:', updateError);
-        return res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: 'Failed to update product' });
       }
+      
+      // Логируем успешное обновление товара
+      await supabase
+        .from('admin_activity')
+        .insert({
+          telegram_id: user.id,
+          action: 'update',
+          target_type: 'product',
+          target_id: data.id,
+          details: {
+            name: data.name,
+            price: data.price,
+            changes: {
+              name: req.body.name !== data.name ? { old: req.body.name, new: data.name } : undefined,
+              price: req.body.price !== data.price ? { old: req.body.price, new: data.price } : undefined,
+              // Добавьте другие поля при необходимости
+            }
+          }
+        });
       
       return res.status(200).json({ 
         success: true,
@@ -187,6 +227,17 @@ module.exports = async (req, res) => {
     if (req.method === 'DELETE') {
       const productId = req.url.split('/').pop();
       
+      // Получаем информацию о товаре перед удалением для логирования
+      const {  product, error: fetchError } = await supabase
+        .from('products')
+        .select('id, name, price')
+        .eq('id', productId)
+        .single();
+      
+      if (fetchError || !product) {
+        return res.status(404).json({ error: 'Product not found' });
+      }
+      
       // Удаляем товар из Supabase
       const { error: deleteError } = await supabase
         .from('products')
@@ -195,8 +246,22 @@ module.exports = async (req, res) => {
       
       if (deleteError) {
         console.error('Supabase delete error:', deleteError);
-        return res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: 'Failed to delete product' });
       }
+      
+      // Логируем успешное удаление товара
+      await supabase
+        .from('admin_activity')
+        .insert({
+          telegram_id: user.id,
+          action: 'delete',
+          target_type: 'product',
+          target_id: productId,
+          details: {
+            name: product.name,
+            price: product.price
+          }
+        });
       
       return res.status(200).json({ 
         success: true,
@@ -209,6 +274,6 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   } catch (error) {
     console.error('Admin product error:', error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to process request' });
   }
 };

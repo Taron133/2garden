@@ -41,6 +41,11 @@ module.exports = async (req, res) => {
     // Обработка действий с заказом
     if (callbackData.startsWith('confirm_order_')) {
       const orderId = callbackData.replace('confirm_order_', '');
+
+      // Создаем клиент Supabase с заголовком x-telegram-id
+        const supabase = createSupabaseClient({
+            'x-telegram-id': user.id.toString()
+        });
       
       // Обновляем статус заказа
       const { error } = await supabase

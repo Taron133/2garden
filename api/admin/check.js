@@ -1,3 +1,4 @@
+const { createSupabaseClient } = require('../supabase');
 const crypto = require('crypto');
 
 module.exports = async (req, res) => {
@@ -55,20 +56,29 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Invalid user data' });
     }
     
-    // Проверяем, является ли пользователь администратором
-    const isAdmin = String(user.id) === process.env.GARDEN_ADMIN_TELEGRAM_ID;
+    // Создаем клиент Supabase с заголовком x-telegram-id
+    const supabase = createSupabaseClient({
+      'x-telegram-id': user.id.toString()
+    });
     
-    if (isAdmin) {
-      return res.status(200).json({ 
-        isAdmin: true,
-        message: 'Доступ подтвержден' 
-      });
-    } else {
+    // Проверка, является ли пользователь администратором
+    const {  admin, error: adminError } = await supabase
+      .from('admins')
+      .select('telegram_id')
+      .eq('telegram_id', user.id)
+      .maybeSingle();
+    
+    if (adminError || !admin) {
       return res.status(403).json({ 
         isAdmin: false,
         message: 'Доступ запрещен' 
       });
     }
+    
+    return res.status(200).json({ 
+      isAdmin: true,
+      message: 'Доступ подтвержден' 
+    });
   } catch (error) {
     console.error('Admin check error:', error);
     return res.status(500).json({ 
