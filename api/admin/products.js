@@ -92,7 +92,7 @@ module.exports = async (req, res) => {
       
       if (error) {
         console.error('Supabase error:', error);
-        return res.status(500).json({ error: 'Failed to fetch products' });
+        return res.status(500).json({ error: error.message });
       }
       
       return res.status(200).json(data);
@@ -129,7 +129,7 @@ module.exports = async (req, res) => {
       
       if (insertError) {
         console.error('Supabase insert error:', insertError);
-        return res.status(500).json({ error: 'Failed to save product' });
+        return res.status(500).json({ error: error.message });
       }
       
       return res.status(201).json({ 
@@ -173,7 +173,7 @@ module.exports = async (req, res) => {
       
       if (updateError) {
         console.error('Supabase update error:', updateError);
-        return res.status(500).json({ error: 'Failed to update product' });
+        return res.status(500).json({ error: error.message });
       }
       
       return res.status(200).json({ 
@@ -195,7 +195,7 @@ module.exports = async (req, res) => {
       
       if (deleteError) {
         console.error('Supabase delete error:', deleteError);
-        return res.status(500).json({ error: 'Failed to delete product' });
+        return res.status(500).json({ error: error.message });
       }
       
       return res.status(200).json({ 
@@ -209,6 +209,6 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   } catch (error) {
     console.error('Admin product error:', error);
-    return res.status(500).json({ error: 'Failed to process request' });
+    return res.status(500).json({ error: error.message });
   }
 };
