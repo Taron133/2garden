@@ -596,7 +596,7 @@ class ApiClient {
   
   static async logError(endpoint, method, errorMessage) {
     try {
-      await fetch(`${API_CONFIG.BASE_URL}/logs.js`, {
+      await fetch(`${API_CONFIG.BASE_URL}/logs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
