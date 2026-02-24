@@ -44,6 +44,8 @@ module.exports = async (req, res) => {
       .join('\n');
     
     const hmac = crypto.createHmac('sha256', secretKey).update(checkString).digest('hex');
+
+    console.error('111');
     
     if (hmac !== hash) {
       return res.status(401).json({ error: 'Unauthorized: Invalid hash' });
@@ -58,6 +60,8 @@ module.exports = async (req, res) => {
     // Обработка POST запроса
     if (req.method === 'POST') {
       const { name, price, category, image, description } = req.body;
+
+      console.error('222');
       
       // Валидация данных
       if (!name || !price || !category || !image || !description) {
@@ -66,11 +70,12 @@ module.exports = async (req, res) => {
           required: ['name', 'price', 'category', 'image', 'description'] 
         });
       }
+      console.error('333');
       
       if (typeof price !== 'number' || price <= 0) {
         return res.status(400).json({ error: 'Invalid price' });
       }
-      
+      console.error('444');
       // Сохраняем товар в Supabase
       const { data, error } = await supabase
         .from('products')
@@ -83,12 +88,12 @@ module.exports = async (req, res) => {
         })
         .select()
         .single();
-      
+      console.error('555');
       if (error) {
         console.error('Supabase error:', error);
         return res.status(500).json({ error: 'Failed to save product' });
       }
-      
+      console.error('666');
       return res.status(201).json({ 
         success: true,
         product: data,
