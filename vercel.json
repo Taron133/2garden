@@ -12,6 +12,15 @@
   ],
   "routes": [
     {
+      "src": "/api/admin/check",
+      "dest": "/api/admin/check.js",
+      "methods": ["GET", "OPTIONS"]
+    },
+    {
+      "src": "/api/admin/products",
+      "dest": "/api/admin/products.js",
+      "methods": ["POST", "OPTIONS"]
+    },{
       "src": "/api/products",
       "dest": "/api/products.js",
       "methods": ["GET", "OPTIONS"]

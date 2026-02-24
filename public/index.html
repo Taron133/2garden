@@ -462,6 +462,66 @@
     <button class="btn" id="checkout">Оформить заказ</button>
   </div>
 
+  <div id="admin-panel" class="page">
+  <button class="btn btn-back" id="back-to-catalog-from-admin">Назад к каталогу</button>
+  <h2>Административная панель</h2>
+  
+  <div id="admin-login" class="order-form">
+    <h3>Вход для администратора</h3>
+    <p>Для доступа к административной панели необходимо подтвердить, что вы администратор.</p>
+    <button class="btn" id="admin-login-btn">Подтвердить доступ</button>
+  </div>
+  
+  <div id="admin-content" class="hidden">
+    <div class="order-form">
+      <h3>Добавить новый товар</h3>
+      
+      <div class="form-group">
+        <label for="product-name">Название</label>
+        <input type="text" id="product-name" placeholder="Смартфон X1">
+        <div class="error-message">Введите название товара</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="product-price">Цена (руб.)</label>
+        <input type="number" id="product-price" placeholder="25990">
+        <div class="error-message">Введите корректную цену</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="product-category">Категория</label>
+        <select id="product-category">
+          <option value="electronics">Электроника</option>
+          <option value="audio">Аудио</option>
+          <option value="smart_home">Умный дом</option>
+          <option value="gadgets">Гаджеты</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="product-image">URL изображения</label>
+        <input type="url" id="product-image" placeholder="https://example.com/image.jpg">
+        <div class="error-message">Введите корректный URL</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="product-description">Описание</label>
+        <textarea id="product-description" rows="4" placeholder="Описание товара..."></textarea>
+        <div class="error-message">Введите описание товара</div>
+      </div>
+      
+      <button class="btn" id="add-product-btn">Добавить товар</button>
+    </div>
+    
+    <div class="order-form">
+      <h3>Текущие товары</h3>
+      <div id="products-list">
+        <!-- Список товаров будет загружен здесь -->
+      </div>
+    </div>
+  </div>
+</div>
+
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
     // Инициализация Telegram WebApp
@@ -512,10 +572,31 @@ class ApiClient {
       throw error;
     }
   }
+
+  static async checkAdmin() {
+    try {
+      const response = await fetch(`${API_CONFIG.BASE_URL}/admin/check`, {
+        method: 'GET',
+        headers: {
+          'X-Telegram-Init-Data': Telegram.WebApp.initData
+        }
+      });
+      
+      if (!response.ok) {
+        return false;
+      }
+      
+      const data = await response.json();
+      return data.isAdmin;
+    } catch (error) {
+      console.error('Admin check error:', error);
+      return false;
+    }
+  }
   
   static async logError(endpoint, method, errorMessage) {
     try {
-      await fetch(`${API_CONFIG.BASE_URL}/logs`, {
+      await fetch(`${API_CONFIG.BASE_URL}/logs.js`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -887,24 +968,54 @@ class ApiClient {
       throw new Error('Не удалось получить данные пользователя');
     }
     
+    // Проверка прав администратора (на сервере)
+    let isAdmin = false;
+    try {
+      const adminCheck = await fetch(`${API_CONFIG.BASE_URL}/admin/check`, {
+        method: 'GET',
+        headers: {
+          'X-Telegram-Init-Data': Telegram.WebApp.initData
+        }
+      });
+      
+      const adminData = await adminCheck.json();
+      isAdmin = adminData.isAdmin;
+    } catch (error) {
+      console.error('Admin check failed:', error);
+      // Не показываем ошибку пользователю, просто считаем, что он не администратор
+    }
+    
+    // Добавляем кнопку администратора, если пользователь является администратором
+    if (isAdmin) {
+      const adminButton = document.createElement('div');
+      adminButton.className = 'cart-icon';
+      adminButton.innerHTML = '🛠️';
+      adminButton.style.cursor = 'pointer';
+      adminButton.id = 'admin-button';
+      adminButton.title = 'Административная панель';
+      
+      adminButton.addEventListener('click', () => {
+        showAdminPanel();
+      });
+      
+      document.querySelector('.header-title').appendChild(adminButton);
+    }
+    
     // Загрузка данных с сервера
     try {
-      products = await ApiClient.getProducts();
+      const serverProducts = await ApiClient.getProducts();
+      products = serverProducts;
     } catch (error) {
       console.error('Failed to load products:', error);
       showNotification(`Ошибка загрузки товаров: ${error.message}`, 'error');
-      // Используем тестовые данные только для разработки
-      products = [
-        { id: 1, name: "Смартфон X1", price: 25990, category: 'electronics', 
-          image: "https://via.placeholder.com/300/92c952",
-          description: "Современный смартфон с мощным процессором и отличной камерой." },
-        // ... другие тестовые данные
-      ];
     }
     
     updateCartCount();
     renderCategories();
     renderCatalog();
+    
+    // ... остальной код инициализации без изменений
+    
     
     // Обработчики навигации
     document.getElementById('back-to-catalog').addEventListener('click', () => {
@@ -991,7 +1102,7 @@ class ApiClient {
         setLoading(false);
       }
     });
-    
+
   } catch (error) {
     console.error('Initialization error:', error);
     showNotification(`Ошибка загрузки приложения: ${error.message}`, 'error');
@@ -1081,6 +1192,195 @@ class ApiClient {
     
     // Запускаем приложение после полной загрузки
     document.addEventListener('DOMContentLoaded', initApp);
+
+
+
+    // Управление административной панелью
+let isAdmin = false;
+
+function showAdminPanel() {
+  // Сначала проверяем права на сервере
+  ApiClient.checkAdmin()
+    .then(isAdmin => {
+      if (!isAdmin) {
+        showNotification('Доступ запрещен', 'error');
+        showPage('catalog');
+        return;
+      }
+      
+      showPage('admin-panel');
+      loadProductsForAdmin();
+    })
+    .catch(error => {
+      showNotification(`Ошибка проверки прав: ${error.message}`, 'error');
+      showPage('catalog');
+    });
+}
+
+function loadProductsForAdmin() {
+  const productsList = document.getElementById('products-list');
+  productsList.innerHTML = '<div class="loading-spinner" style="margin: 20px auto;"></div>';
+  
+  ApiClient.request('/products')
+    .then(data => {
+      if (data.length === 0) {
+        productsList.innerHTML = '<div class="cart-empty">Товары не найдены</div>';
+        return;
+      }
+      
+      let html = '';
+      data.forEach(product => {
+        html += `
+          <div class="cart-item">
+            <div class="cart-item-info">
+              <div class="cart-item-name">${product.name}</div>
+              <div class="product-price">${product.price} руб.</div>
+              <div>Категория: ${product.category}</div>
+            </div>
+            <div>
+              <button class="cart-quantity-btn" style="background: #ff3b30; color: white;" data-remove="${product.id}">×</button>
+            </div>
+          </div>
+        `;
+      });
+      
+      productsList.innerHTML = html;
+      
+      // Добавляем обработчики удаления
+      document.querySelectorAll('[data-remove]').forEach(button => {
+        button.addEventListener('click', async (e) => {
+          const productId = e.target.getAttribute('data-remove');
+          
+          if (confirm('Вы действительно хотите удалить этот товар?')) {
+            try {
+              setLoading(true);
+              await ApiClient.request(`/admin/products/${productId}`, 'DELETE');
+              showNotification('Товар удален');
+              loadProductsForAdmin();
+            } catch (error) {
+              showNotification(`Ошибка при удалении: ${error.message}`, 'error');
+            } finally {
+              setLoading(false);
+            }
+          }
+        });
+      });
+    })
+    .catch(error => {
+      productsList.innerHTML = `<div class="cart-empty" style="color: #ff3b30;">Ошибка загрузки: ${error.message}</div>`;
+    });
+}
+
+// Обработчики для административной панели
+document.getElementById('admin-login-btn').addEventListener('click', async () => {
+  try {
+    setLoading(true);
+    
+    // Проверяем, является ли пользователь администратором
+    const response = await fetch('/api/admin/check', {
+      method: 'GET',
+      headers: {
+        'X-Telegram-Init-Data': Telegram.WebApp.initData
+      }
+    });
+    
+    if (response.ok) {
+      isAdmin = true;
+      document.getElementById('admin-login').classList.add('hidden');
+      document.getElementById('admin-content').classList.remove('hidden');
+      loadProductsForAdmin();
+    } else {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Access denied');
+    }
+  } catch (error) {
+    showNotification(`Ошибка доступа: ${error.message}`, 'error');
+  } finally {
+    setLoading(false);
+  }
+});
+
+document.getElementById('add-product-btn').addEventListener('click', async () => {
+  const name = document.getElementById('product-name').value.trim();
+  const price = parseInt(document.getElementById('product-price').value);
+  const category = document.getElementById('product-category').value;
+  const image = document.getElementById('product-image').value.trim();
+  const description = document.getElementById('product-description').value.trim();
+  
+  // Сброс ошибок
+  document.querySelectorAll('.form-group').forEach(group => {
+    group.classList.remove('error');
+  });
+  
+  let isValid = true;
+  
+  // Проверка названия
+  if (!name) {
+    document.getElementById('product-name').closest('.form-group').classList.add('error');
+    isValid = false;
+  }
+  
+  // Проверка цены
+  if (isNaN(price) || price <= 0) {
+    document.getElementById('product-price').closest('.form-group').classList.add('error');
+    isValid = false;
+  }
+  
+  // Проверка URL изображения
+  try {
+    if (image && !image.startsWith('http')) {
+      throw new Error('Invalid URL');
+    }
+  } catch (e) {
+    document.getElementById('product-image').closest('.form-group').classList.add('error');
+    isValid = false;
+  }
+  
+  // Проверка описания
+  if (!description) {
+    document.getElementById('product-description').closest('.form-group').classList.add('error');
+    isValid = false;
+  }
+  
+  if (!isValid) {
+    showNotification('Проверьте правильность заполнения формы', 'error');
+    return;
+  }
+  
+  try {
+    setLoading(true);
+    
+    const productData = {
+      name,
+      price,
+      category,
+      image,
+      description
+    };
+    
+    await ApiClient.request('/admin/products', 'POST', productData);
+    
+    showNotification('Товар успешно добавлен!');
+    
+    // Очистка формы
+    document.getElementById('product-name').value = '';
+    document.getElementById('product-price').value = '';
+    document.getElementById('product-image').value = '';
+    document.getElementById('product-description').value = '';
+    
+    // Обновление списка
+    loadProductsForAdmin();
+  } catch (error) {
+    showNotification(`Ошибка при добавлении товара: ${error.message}`, 'error');
+  } finally {
+    setLoading(false);
+  }
+});
+
+// Добавляем обработчик для перехода в административную панель
+document.getElementById('back-to-catalog-from-admin').addEventListener('click', () => {
+  showPage('catalog');
+});
   </script>
 </body>
 </html>
